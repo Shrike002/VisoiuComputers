@@ -28,6 +28,31 @@ namespace VisoiuComputers.Core.Services
             return MapCategoryToDto(categories);
         }
 
+        public async Task<object> GetCategoriesAsync(int? pageNumber = null, int? pageSize = null)
+        {
+            var (categories, totalCount) = await _repository.GetCategoriesAsync(pageNumber, pageSize);
+
+            var categoryDtos = MapCategoryToDto(categories);
+
+            if (pageNumber.HasValue && pageSize.HasValue && pageNumber > 0 && pageSize > 0)
+            {
+                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize.Value);
+
+                return new
+                {
+                    data = categoryDtos,
+                    pageNumber = pageNumber.Value,
+                    pageSize = pageSize.Value,
+                    totalRecords = totalCount,
+                    totalPages = totalPages,
+                    hasNextPage = pageNumber.Value < totalPages,
+                    hasPreviousPage = pageNumber.Value > 1
+                };
+            }
+
+            return categoryDtos;
+        }
+
         public async Task<CategoryDto?> GetCategoriesAsync(int id)
         {
             var categories = await _repository.GetCategoriesAsync(id);
@@ -63,7 +88,7 @@ namespace VisoiuComputers.Core.Services
             _repository.Insert(category);
             await _repository.SaveChangesAsync();
 
-           // return await _repository.SaveChangesAsync();
+            // return await _repository.SaveChangesAsync();
         }
     }
 }
