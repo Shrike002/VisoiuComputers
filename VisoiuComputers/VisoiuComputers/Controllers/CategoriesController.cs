@@ -21,12 +21,21 @@ namespace VisoiuComputers.Api.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategory()
+        public async Task<ActionResult<object>> GetCategory([FromQuery] int? pageNumber = null, [FromQuery] int? pageSize = null)
         {
             try
             {
-                _logger.LogInformation("Getting all categories");
-                var result = await _categoryService.GetCategoriesAsync();
+                if (pageNumber.HasValue && pageSize.HasValue && pageNumber > 0 && pageSize > 0)
+                {
+                    _logger.LogInformation("Getting categories with pagination: PageNumber={PageNumber}, PageSize={PageSize}",
+                        pageNumber, pageSize);
+                }
+                else
+                {
+                    _logger.LogInformation("Getting all categories");
+                }
+
+                var result = await _categoryService.GetCategoriesAsync(pageNumber, pageSize);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -61,6 +70,7 @@ namespace VisoiuComputers.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving data from the database");
             }
         }
+
         [HttpPost("add-category")]
         public async Task<IActionResult> AddCategory([FromBody] AddCategoryRequest request)
         {

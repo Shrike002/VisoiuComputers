@@ -8,6 +8,7 @@ using VisoiuComputers.Core.Dtos.Requests;
 using VisoiuComputers.Core.Mapping;
 using VisoiuComputers.Database.Entities;
 using VisoiuComputers.Database.Repositories;
+using VisoiuComputers.Core.Exceptions;
 
 namespace VisoiuComputers.Core.Services
 {
@@ -23,6 +24,13 @@ namespace VisoiuComputers.Core.Services
         public async Task<IEnumerable<ComponentDto>> GetComponentsAsync()
         {
             var components = await _repository.GetComponentsAsync();
+
+            return MapComponentToDto(components);
+        }
+
+        public async Task<IEnumerable<ComponentDto>> GetComponentsAsync(GetComponentsRequest request)
+        {
+            var components = await _repository.GetComponentsAsync(request.Name, request.CategoryId, request.SortBy, request.SortOrder);
 
             return MapComponentToDto(components);
         }
@@ -57,6 +65,36 @@ namespace VisoiuComputers.Core.Services
 
             };
         }
+        public async Task UpdateComponentAsync(int id, UpdateComponentRequest request)
+        {
+            var existingComponent = await _repository.GetComponentsAsync(id);
+
+            if (existingComponent == null)
+            {
+                throw new ComponentNotFoundException(id);
+            }
+
+            if (!string.IsNullOrEmpty(request.Name))
+            {
+                existingComponent.Name = request.Name;
+            }
+
+            if (request.Price.HasValue)
+            {
+                existingComponent.Price = request.Price.Value;
+            }
+
+            if (request.CategoryId.HasValue)
+            {
+                existingComponent.CategoryId = request.CategoryId.Value;
+            }
+
+            existingComponent.ModifiedAt = DateTime.UtcNow;
+
+            _repository.Update(existingComponent);
+            await _repository.SaveChangesAsync();
+        }
+
         public async Task AddComponentAsync(AddComponentRequest request)
         {
             Component component;
@@ -66,7 +104,7 @@ namespace VisoiuComputers.Core.Services
             _repository.Insert(component);
             await _repository.SaveChangesAsync();
 
-           // return await _repository.SaveChangesAsync();
+            // return await _repository.SaveChangesAsync();
         }
     }
 }

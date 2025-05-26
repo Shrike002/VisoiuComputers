@@ -2,6 +2,7 @@
 using VisoiuComputers.Core.Dtos.Common;
 using VisoiuComputers.Core.Dtos.Requests;
 using VisoiuComputers.Core.Services;
+using VisoiuComputers.Core.Exceptions;
 
 namespace VisoiuComputers.Api.Controllers
 {
@@ -21,17 +22,29 @@ namespace VisoiuComputers.Api.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<ComponentDto>>> GetComponent()
+        public async Task<ActionResult<IEnumerable<ComponentDto>>> GetComponent([FromQuery] GetComponentsRequest? request = null)
         {
             try
             {
-                _logger.LogInformation("Getting all components");
-                var result = await _componentService.GetComponentsAsync();
+                _logger.LogInformation("Getting components with filters: Name={Name}, CategoryId={CategoryId}, SortBy={SortBy}, SortOrder={SortOrder}",
+                    request?.Name, request?.CategoryId, request?.SortBy, request?.SortOrder);
+
+                IEnumerable<ComponentDto> result;
+
+                if (request != null && (!string.IsNullOrEmpty(request.Name) || request.CategoryId.HasValue || !string.IsNullOrEmpty(request.SortBy)))
+                {
+                    result = await _componentService.GetComponentsAsync(request);
+                }
+                else
+                {
+                    result = await _componentService.GetComponentsAsync();
+                }
+
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while getting component");
+                _logger.LogError(ex, "Error occurred while getting components");
                 return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving data from the database");
             }
         }
@@ -61,6 +74,33 @@ namespace VisoiuComputers.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving data from the database");
             }
         }
+
+        [HttpPatch("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> UpdateComponent(int id, [FromBody] UpdateComponentRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Updating component with id {ComponentId}", id);
+
+                await _componentService.UpdateComponentAsync(id, request);
+
+                return Ok("Component updated successfully");
+            }
+            catch (ComponentNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Component with id {ComponentId} not found", id);
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while updating component with id {ComponentId}", id);
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error updating component");
+            }
+        }
+
         [HttpPost("add-component")]
         public async Task<IActionResult> AddComponent([FromBody] AddComponentRequest request)
         {
